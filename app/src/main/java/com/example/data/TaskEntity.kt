@@ -22,7 +22,9 @@ data class TaskEntity(
     val isFavorite: Boolean = false,
     val isArchived: Boolean = false,
     val scheduleGroupId: String? = null,
-    val scheduleConfig: String? = null
+    val scheduleConfig: String? = null,
+    val endTime: String? = null, // Format: "HH:mm"
+    val estimatedDuration: Int = 30 // Duration in minutes
 )
 
 @Entity(tableName = "categories")

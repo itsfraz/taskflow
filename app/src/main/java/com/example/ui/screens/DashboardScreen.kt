@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.CategoryEntity
 import com.example.data.TaskEntity
 import com.example.ui.TaskViewModel
+import com.example.util.TimeScheduleUtils
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -574,7 +575,8 @@ fun DashboardScreen(
                             onLongTap = { viewModel.toggleTaskSelection(task.id) },
                             onCheckedChange = { viewModel.toggleTaskCompletion(context, task) },
                             onPinToggle = { viewModel.toggleTaskPin(task) },
-                            onFavoriteToggle = { viewModel.toggleTaskFavorite(task) }
+                            onFavoriteToggle = { viewModel.toggleTaskFavorite(task) },
+                            modifier = Modifier.animateItem()
                         )
                     }
                     item {
@@ -844,7 +846,8 @@ fun TaskItemCard(
     onLongTap: () -> Unit,
     onCheckedChange: (Boolean) -> Unit,
     onPinToggle: () -> Unit,
-    onFavoriteToggle: () -> Unit
+    onFavoriteToggle: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     
@@ -896,7 +899,7 @@ fun TaskItemCard(
         colors = CardDefaults.cardColors(containerColor = rowBg),
         border = borderStroke,
         elevation = CardDefaults.cardElevation(defaultElevation = animatedElevation),
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .graphicsLayer {
                 scaleX = animatedScale
@@ -1177,8 +1180,10 @@ fun QuickAddTaskDialog(
     var priority by remember { mutableStateOf("Medium") }
     
     // Date & Time pickers fields
-    var selectedDateMs by remember { mutableStateOf<Long?>(null) }
-    var dueTime by remember { mutableStateOf("") }
+    var selectedDateMs by remember { mutableStateOf<Long?>(System.currentTimeMillis()) }
+    var dueTime by remember { mutableStateOf("09:00") }
+    var endTime by remember { mutableStateOf("09:30") }
+    var estimatedDuration by remember { mutableStateOf(30) }
     var reminderOffsetMin by remember { mutableStateOf(15) } // Default 15 mins
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
@@ -1280,53 +1285,25 @@ fun QuickAddTaskDialog(
                         }
                     }
                 } else {
-                    // Default basic picker that prompts to configure schedule
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    // Prompt to configure custom task schedule using a clean, full-width button
+                    Button(
+                        onClick = { showSchedulerDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("choose_advanced_schedule_btn"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Button(
-                            onClick = { 
-                                selectedDateMs = System.currentTimeMillis() 
-                                scheduledDatesList = emptyList() // clear advanced
-                            },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (selectedDateMs != null && scheduledDatesList.isEmpty()) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                                contentColor = MaterialTheme.colorScheme.onSurface
-                            )
-                        ) {
-                            Text("Today", fontSize = 11.sp)
-                        }
-                        Button(
-                            onClick = {
-                                val cal = Calendar.getInstance()
-                                cal.add(Calendar.DAY_OF_YEAR, 1)
-                                selectedDateMs = cal.timeInMillis
-                                scheduledDatesList = emptyList() // clear advanced
-                            },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (selectedDateMs != null && scheduledDatesList.isEmpty()) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                                contentColor = MaterialTheme.colorScheme.onSurface
-                            )
-                        ) {
-                            Text("Tomorrow", fontSize = 11.sp)
-                        }
-                        
-                        Button(
-                            onClick = { showSchedulerDialog = true },
-                            modifier = Modifier.weight(1.2f).testTag("choose_advanced_schedule_btn"),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        ) {
-                            Icon(Icons.Default.Tune, "Advanced Settings", modifier = Modifier.size(12.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Customize", fontSize = 11.sp)
-                        }
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = "Configure Schedule",
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Configure Task Schedule...", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                     }
                 }
 
@@ -1342,6 +1319,129 @@ fun QuickAddTaskDialog(
                             showSchedulerDialog = false
                         }
                     )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("Select Date & Duration", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Spacer(modifier = Modifier.height(6.dp))
+                
+                // Date picker button
+                val dateStr = selectedDateMs?.let { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(it)) } ?: "Today"
+                OutlinedButton(
+                    onClick = {
+                        val cal = Calendar.getInstance()
+                        selectedDateMs?.let { cal.timeInMillis = it }
+                        android.app.DatePickerDialog(
+                            context,
+                            { _, year, month, dayOfMonth ->
+                                val selected = Calendar.getInstance()
+                                selected.set(year, month, dayOfMonth)
+                                selectedDateMs = selected.timeInMillis
+                            },
+                            cal.get(Calendar.YEAR),
+                            cal.get(Calendar.MONTH),
+                            cal.get(Calendar.DAY_OF_MONTH)
+                        ).show()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.CalendarToday, contentDescription = "Date", modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Date: $dateStr")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Start Time Picker Button
+                    OutlinedButton(
+                        onClick = {
+                            val parts = dueTime.split(":")
+                            val h = if (parts.size >= 2) parts[0].toIntOrNull() ?: 9 else 9
+                            val m = if (parts.size >= 2) parts[1].toIntOrNull() ?: 0 else 0
+                            android.app.TimePickerDialog(
+                                context,
+                                { _, hourOfDay, minute ->
+                                    dueTime = String.format("%02d:%02d", hourOfDay, minute)
+                                    // Automatically set endTime based on estimatedDuration
+                                    val endMinutes = (hourOfDay * 60 + minute) + estimatedDuration
+                                    endTime = String.format("%02d:%02d", (endMinutes / 60) % 24, endMinutes % 60)
+                                },
+                                h,
+                                m,
+                                false
+                            ).show()
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.AccessTime, contentDescription = "Start", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        val formattedTime = TimeScheduleUtils.parseToMinutes(dueTime)?.let { TimeScheduleUtils.formatTo12H(it) } ?: dueTime
+                        Text(text = "Start: $formattedTime", fontSize = 11.sp)
+                    }
+
+                    // End Time Picker Button
+                    OutlinedButton(
+                        onClick = {
+                            val parts = endTime.split(":")
+                            val h = if (parts.size >= 2) parts[0].toIntOrNull() ?: 9 else 9
+                            val m = if (parts.size >= 2) parts[1].toIntOrNull() ?: 30 else 30
+                            android.app.TimePickerDialog(
+                                context,
+                                { _, hourOfDay, minute ->
+                                    endTime = String.format("%02d:%02d", hourOfDay, minute)
+                                    // Re-calculate duration if start time is set
+                                    if (dueTime.isNotEmpty()) {
+                                        val startMin = TimeScheduleUtils.parseToMinutes(dueTime) ?: 0
+                                        val endMin = hourOfDay * 60 + minute
+                                        val diff = (endMin - startMin + 1440) % 1440
+                                        estimatedDuration = if (diff > 0) diff else 30
+                                    }
+                                },
+                                h,
+                                m,
+                                false
+                            ).show()
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Timer, contentDescription = "End", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        val formattedTime = TimeScheduleUtils.parseToMinutes(endTime)?.let { TimeScheduleUtils.formatTo12H(it) } ?: endTime
+                        Text(text = "End: $formattedTime", fontSize = 11.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Duration Picker Preset Chips
+                Text("Estimated Duration", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    listOf(15, 30, 45, 60, 120).forEach { mins ->
+                        val label = if (mins >= 60) "${mins / 60}h" else "${mins}m"
+                        val isSel = estimatedDuration == mins
+                        FilterChip(
+                            selected = isSel,
+                            onClick = {
+                                estimatedDuration = mins
+                                if (dueTime.isNotEmpty()) {
+                                    val startMin = TimeScheduleUtils.parseToMinutes(dueTime) ?: 540
+                                    val endMin = startMin + mins
+                                    endTime = String.format("%02d:%02d", (endMin / 60) % 24, endMin % 60)
+                                }
+                            },
+                            label = { Text(label) }
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1385,7 +1485,7 @@ fun QuickAddTaskDialog(
                                 category = selectedCategory,
                                 priority = priority,
                                 colorLabel = "#2196F3",
-                                dueTime = if (dueTime.isEmpty()) "12:00" else dueTime,
+                                dueTime = if (dueTime.isEmpty()) "09:00" else dueTime,
                                 reminderOffsetMin = reminderOffsetMin,
                                 dates = scheduledDatesList,
                                 scheduleGroupId = groupId,
@@ -1399,9 +1499,11 @@ fun QuickAddTaskDialog(
                                 category = selectedCategory,
                                 priority = priority,
                                 dueDate = selectedDateMs ?: System.currentTimeMillis(),
-                                dueTime = if (dueTime.isEmpty()) "12:00" else dueTime,
+                                dueTime = if (dueTime.isEmpty()) "09:00" else dueTime,
                                 reminderOffsetMin = reminderOffsetMin,
-                                colorLabel = "#2196F3"
+                                colorLabel = "#2196F3",
+                                endTime = if (endTime.isEmpty()) "09:30" else endTime,
+                                estimatedDuration = estimatedDuration
                             )
                             if (error != null) {
                                 errorMsg = error

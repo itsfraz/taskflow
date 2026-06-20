@@ -3,6 +3,7 @@ package com.example.ui.screens
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,7 +31,7 @@ import com.example.data.TaskEntity
 import com.example.ui.TaskViewModel
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun SmartSuggestionDialog(
     viewModel: TaskViewModel,
@@ -227,7 +228,7 @@ fun SmartSuggestionDialog(
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(suggestions) { suggestion ->
+                            items(suggestions, key = { it.title }) { suggestion ->
                                 val status = processedSuggestions[suggestion.title]
                                 SuggestionItemCard(
                                     suggestion = suggestion,
@@ -284,7 +285,8 @@ fun SmartSuggestionDialog(
                                             processedSuggestions[suggestion.title] = "Added"
                                             Toast.makeText(context, "Matched task not found. Added as new instead!", Toast.LENGTH_SHORT).show()
                                         }
-                                    }
+                                    },
+                                    modifier = Modifier.animateItem()
                                 )
                             }
                         }
@@ -329,13 +331,14 @@ fun SmartSuggestionDialog(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun SuggestionItemCard(
     suggestion: SmartSuggestion,
     status: String?, // "Added", "Applied", or null
     onAddClicked: () -> Unit,
-    onOptimizeClicked: () -> Unit
+    onOptimizeClicked: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val isNewType = suggestion.type == "new"
     val containerBorderColor = if (isNewType) {
@@ -345,7 +348,7 @@ fun SuggestionItemCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, containerBorderColor)

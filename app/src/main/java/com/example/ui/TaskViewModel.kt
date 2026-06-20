@@ -219,7 +219,9 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
         dueTime: String?,
         reminderOffsetMin: Int?, // Offset in minutes or null
         colorLabel: String,
-        repeatOption: String = "None"
+        repeatOption: String = "None",
+        endTime: String? = null,
+        estimatedDuration: Int = 30
     ): String? {
         // Complete Input Validation
         if (title.trim().isEmpty()) {
@@ -257,7 +259,9 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
                 dueTime = dueTime,
                 reminderTime = reminderTimeMs,
                 repeatOption = repeatOption,
-                colorLabel = colorLabel
+                colorLabel = colorLabel,
+                endTime = endTime,
+                estimatedDuration = estimatedDuration
             )
             val insertId = repository.insertTask(task)
             
@@ -284,7 +288,9 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
         dueTime: String?,
         reminderOffsetMin: Int?,
         colorLabel: String,
-        repeatOption: String = "None"
+        repeatOption: String = "None",
+        endTime: String? = null,
+        estimatedDuration: Int = 30
     ): String? {
         if (title.trim().isEmpty()) {
             return "Task title cannot be empty"
@@ -320,7 +326,9 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
                 dueTime = dueTime,
                 reminderTime = reminderTimeMs,
                 repeatOption = repeatOption,
-                colorLabel = colorLabel
+                colorLabel = colorLabel,
+                endTime = endTime,
+                estimatedDuration = estimatedDuration
             )
             val id = repository.insertTask(task)
             if (reminderTimeMs != null && notificationsEnabled.value) {

@@ -28,10 +28,10 @@ import com.example.data.CategoryEntity
 import com.example.data.TaskEntity
 import com.example.data.SmartSuggestionHelper
 import com.example.ui.TaskViewModel
+import com.example.util.TimeScheduleUtils
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -242,8 +242,16 @@ fun TaskDetailScreen(
                         AttributeRow(icon = Icons.Default.CalendarToday, label = "Due Date", value = dateValue)
 
                         if (task.dueTime != null) {
-                            AttributeRow(icon = Icons.Default.Timer, label = "Due Time", value = task.dueTime)
+                            val formattedStart = TimeScheduleUtils.parseToMinutes(task.dueTime)?.let { TimeScheduleUtils.formatTo12H(it) } ?: task.dueTime
+                            AttributeRow(icon = Icons.Default.AccessTime, label = "Start Time", value = formattedStart)
                         }
+
+                        if (task.endTime != null) {
+                            val formattedEnd = TimeScheduleUtils.parseToMinutes(task.endTime)?.let { TimeScheduleUtils.formatTo12H(it) } ?: task.endTime
+                            AttributeRow(icon = Icons.Default.Timer, label = "End Time", value = formattedEnd)
+                        }
+
+                        AttributeRow(icon = Icons.Default.HourglassEmpty, label = "Duration", value = "${task.estimatedDuration} minutes")
 
                         val reminderText = if (task.reminderTime != null) {
                             val tf = SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault())
@@ -300,6 +308,11 @@ fun TaskDetailScreen(
         var editDesc by remember { mutableStateOf(task.description) }
         var editCategory by remember { mutableStateOf(task.category) }
         var editPriority by remember { mutableStateOf(task.priority) }
+        
+        var editDueTime by remember { mutableStateOf(task.dueTime ?: "09:00") }
+        var editEndTime by remember { mutableStateOf(task.endTime ?: "09:30") }
+        var editDuration by remember { mutableStateOf(task.estimatedDuration) }
+        var editDueDate by remember { mutableStateOf(task.dueDate ?: System.currentTimeMillis()) }
 
         val initialSettings = remember(task) { SchedulerSettings.fromJson(task.scheduleConfig) }
         var schedulerSettings by remember { mutableStateOf(initialSettings) }
@@ -344,6 +357,123 @@ fun TaskDetailScreen(
                         label = { Text("Description") },
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("Select Date & Duration", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    // Date picker button
+                    val dateFormatted = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(editDueDate))
+                    OutlinedButton(
+                        onClick = {
+                            val cal = Calendar.getInstance().apply { timeInMillis = editDueDate }
+                            android.app.DatePickerDialog(
+                                context,
+                                { _, year, month, dayOfMonth ->
+                                    val selected = Calendar.getInstance()
+                                    selected.set(year, month, dayOfMonth)
+                                    editDueDate = selected.timeInMillis
+                                },
+                                cal.get(Calendar.YEAR),
+                                cal.get(Calendar.MONTH),
+                                cal.get(Calendar.DAY_OF_MONTH)
+                            ).show()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Date: $dateFormatted")
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Start Time Picker Button
+                        OutlinedButton(
+                            onClick = {
+                                val parts = editDueTime.split(":")
+                                val h = if (parts.size >= 2) parts[0].toIntOrNull() ?: 9 else 9
+                                val m = if (parts.size >= 2) parts[1].toIntOrNull() ?: 0 else 0
+                                android.app.TimePickerDialog(
+                                    context,
+                                    { _, hourOfDay, minute ->
+                                        editDueTime = String.format("%02d:%02d", hourOfDay, minute)
+                                        // Automatically set endTime based on estimatedDuration
+                                        val endMinutes = (hourOfDay * 60 + minute) + editDuration
+                                        editEndTime = String.format("%02d:%02d", (endMinutes / 60) % 24, endMinutes % 60)
+                                    },
+                                    h,
+                                    m,
+                                    false
+                                ).show()
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.AccessTime, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            val formattedTime = TimeScheduleUtils.parseToMinutes(editDueTime)?.let { TimeScheduleUtils.formatTo12H(it) } ?: editDueTime
+                            Text(text = "Start: $formattedTime", fontSize = 11.sp)
+                        }
+
+                        // End Time Picker Button
+                        OutlinedButton(
+                            onClick = {
+                                val parts = editEndTime.split(":")
+                                val h = if (parts.size >= 2) parts[0].toIntOrNull() ?: 9 else 9
+                                val m = if (parts.size >= 2) parts[1].toIntOrNull() ?: 30 else 30
+                                android.app.TimePickerDialog(
+                                    context,
+                                    { _, hourOfDay, minute ->
+                                        editEndTime = String.format("%02d:%02d", hourOfDay, minute)
+                                        // Re-calculate duration if start time is set
+                                        if (editDueTime.isNotEmpty()) {
+                                            val startMin = TimeScheduleUtils.parseToMinutes(editDueTime) ?: 0
+                                            val endMin = hourOfDay * 60 + minute
+                                            val diff = (endMin - startMin + 1440) % 1440
+                                            editDuration = if (diff > 0) diff else 30
+                                        }
+                                    },
+                                    h,
+                                    m,
+                                    false
+                                ).show()
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            val formattedTime = TimeScheduleUtils.parseToMinutes(editEndTime)?.let { TimeScheduleUtils.formatTo12H(it) } ?: editEndTime
+                            Text(text = "End: $formattedTime", fontSize = 11.sp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Duration Preset Chips
+                    Text("Estimated Duration", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        listOf(15, 30, 45, 60, 120).forEach { mins ->
+                            val label = if (mins >= 60) "${mins / 60}h" else "${mins}m"
+                            val isSel = editDuration == mins
+                            FilterChip(
+                                selected = isSel,
+                                onClick = {
+                                    editDuration = mins
+                                    if (editDueTime.isNotEmpty()) {
+                                        val startMin = TimeScheduleUtils.parseToMinutes(editDueTime) ?: 540
+                                        val endMin = startMin + mins
+                                        editEndTime = String.format("%02d:%02d", (endMin / 60) % 24, endMin % 60)
+                                    }
+                                },
+                                label = { Text(label) }
+                            )
+                        }
+                    }
 
                     // Priority Selector
                     Column {
@@ -473,6 +603,10 @@ fun TaskDetailScreen(
                                 description = editDesc,
                                 category = editCategory,
                                 priority = editPriority,
+                                dueTime = editDueTime,
+                                endTime = editEndTime,
+                                estimatedDuration = editDuration,
+                                dueDate = editDueDate,
                                 updatedDate = System.currentTimeMillis()
                             )
                             viewModel.updateTaskWithContext(context, updated)
