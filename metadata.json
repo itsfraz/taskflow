@@ -1,0 +1,6 @@
+{
+  "name": "TaskFlow – Smart To-Do List",
+  "description": "Offline-first smart to-do application featuring MVVM architecture, Room Database, custom charts, WorkManager reminders, stats, categories, priorities, and themes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
