@@ -1,5 +1,8 @@
 package com.example.ui
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -45,7 +48,12 @@ fun TaskFlowApp() {
                 fontScale = LocalDensity.current.fontScale * fontScaleMultiplier
             )
         ) {
-            NavHost(navController = navController, startDestination = "splash") {
+            NavHost(
+                navController = navController, 
+                startDestination = "splash",
+                enterTransition = { fadeIn(animationSpec = tween(300)) },
+                exitTransition = { fadeOut(animationSpec = tween(300)) }
+            ) {
                 composable("splash") {
                     SplashScreen(
                         onNavigateToDashboard = {
@@ -56,7 +64,21 @@ fun TaskFlowApp() {
                     )
                 }
 
-                composable("dashboard") {
+                composable(
+                    "dashboard",
+                    enterTransition = {
+                        slideInHorizontally(
+                            initialOffsetX = { -it },
+                            animationSpec = tween(350, easing = FastOutSlowInEasing)
+                        ) + fadeIn(animationSpec = tween(250))
+                    },
+                    exitTransition = {
+                        slideOutHorizontally(
+                            targetOffsetX = { -it },
+                            animationSpec = tween(350, easing = FastOutSlowInEasing)
+                        ) + fadeOut(animationSpec = tween(250))
+                    }
+                ) {
                     DashboardScreen(
                         viewModel = taskViewModel,
                         onNavigateToDetail = { taskId ->
@@ -79,7 +101,28 @@ fun TaskFlowApp() {
 
                 composable(
                     route = "detail/{taskId}",
-                    arguments = listOf(navArgument("taskId") { type = NavType.LongType })
+                    arguments = listOf(navArgument("taskId") { type = NavType.LongType }),
+                    enterTransition = {
+                        slideInVertically(
+                            initialOffsetY = { it },
+                            animationSpec = tween(400, easing = FastOutSlowInEasing)
+                        ) + fadeIn(animationSpec = tween(300))
+                    },
+                    exitTransition = {
+                        slideOutVertically(
+                            targetOffsetY = { it },
+                            animationSpec = tween(450, easing = FastOutSlowInEasing)
+                        ) + fadeOut(animationSpec = tween(300))
+                    },
+                    popEnterTransition = {
+                        fadeIn(animationSpec = tween(250))
+                    },
+                    popExitTransition = {
+                        slideOutVertically(
+                            targetOffsetY = { it },
+                            animationSpec = tween(450, easing = FastOutSlowInEasing)
+                        ) + fadeOut(animationSpec = tween(300))
+                    }
                 ) { backStackEntry ->
                     val taskId = backStackEntry.arguments?.getLong("taskId") ?: -1L
                     TaskDetailScreen(
@@ -91,7 +134,21 @@ fun TaskFlowApp() {
                     )
                 }
 
-                composable("calendar") {
+                composable(
+                    "calendar",
+                    enterTransition = {
+                        slideInHorizontally(
+                            initialOffsetX = { it },
+                            animationSpec = tween(350, easing = FastOutSlowInEasing)
+                        ) + fadeIn(animationSpec = tween(250))
+                    },
+                    exitTransition = {
+                        slideOutHorizontally(
+                            targetOffsetX = { it },
+                            animationSpec = tween(350, easing = FastOutSlowInEasing)
+                        ) + fadeOut(animationSpec = tween(250))
+                    }
+                ) {
                     CalendarScreen(
                         viewModel = taskViewModel,
                         onNavigateBack = {
@@ -103,7 +160,21 @@ fun TaskFlowApp() {
                     )
                 }
 
-                composable("stats") {
+                composable(
+                    "stats",
+                    enterTransition = {
+                        slideInHorizontally(
+                            initialOffsetX = { it },
+                            animationSpec = tween(350, easing = FastOutSlowInEasing)
+                        ) + fadeIn(animationSpec = tween(250))
+                    },
+                    exitTransition = {
+                        slideOutHorizontally(
+                            targetOffsetX = { it },
+                            animationSpec = tween(350, easing = FastOutSlowInEasing)
+                        ) + fadeOut(animationSpec = tween(250))
+                    }
+                ) {
                     StatisticsScreen(
                         viewModel = taskViewModel,
                         onNavigateBack = {
@@ -112,7 +183,21 @@ fun TaskFlowApp() {
                     )
                 }
 
-                composable("settings") {
+                composable(
+                    "settings",
+                    enterTransition = {
+                        slideInHorizontally(
+                            initialOffsetX = { it },
+                            animationSpec = tween(350, easing = FastOutSlowInEasing)
+                        ) + fadeIn(animationSpec = tween(250))
+                    },
+                    exitTransition = {
+                        slideOutHorizontally(
+                            targetOffsetX = { it },
+                            animationSpec = tween(350, easing = FastOutSlowInEasing)
+                        ) + fadeOut(animationSpec = tween(250))
+                    }
+                ) {
                     SettingsScreen(
                         viewModel = taskViewModel,
                         onNavigateBack = {
@@ -121,7 +206,21 @@ fun TaskFlowApp() {
                     )
                 }
 
-                composable("focus") {
+                composable(
+                    "focus",
+                    enterTransition = {
+                        slideInVertically(
+                            initialOffsetY = { -it },
+                            animationSpec = tween(400, easing = FastOutSlowInEasing)
+                        ) + fadeIn(animationSpec = tween(300))
+                    },
+                    exitTransition = {
+                        slideOutVertically(
+                            targetOffsetY = { -it },
+                            animationSpec = tween(400, easing = FastOutSlowInEasing)
+                        ) + fadeOut(animationSpec = tween(300))
+                    }
+                ) {
                     FocusModeScreen(
                         onNavigateBack = {
                             navController.popBackStack()

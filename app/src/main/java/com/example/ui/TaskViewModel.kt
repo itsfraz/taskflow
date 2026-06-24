@@ -441,6 +441,16 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
         }
     }
 
+    fun restoreTask(context: android.content.Context, task: TaskEntity) {
+        viewModelScope.launch {
+            val restored = task.copy(id = 0, updatedDate = System.currentTimeMillis())
+            val newId = repository.insertTask(restored)
+            if (restored.reminderTime != null && restored.reminderTime > System.currentTimeMillis() && !restored.isCompleted && notificationsEnabled.value) {
+                ReminderWorker.scheduleReminder(context.applicationContext, newId, restored.reminderTime)
+            }
+        }
+    }
+
     fun insertScheduledTasks(
         context: android.content.Context,
         title: String,
@@ -449,6 +459,8 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
         priority: String,
         colorLabel: String,
         dueTime: String?,
+        endTime: String?,
+        estimatedDuration: Int,
         reminderOffsetMin: Int?,
         dates: List<Long>,
         scheduleGroupId: String,
@@ -479,6 +491,8 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
                     priority = priority,
                     dueDate = date,
                     dueTime = dueTime,
+                    endTime = endTime,
+                    estimatedDuration = estimatedDuration,
                     reminderTime = reminderTimeMs,
                     repeatOption = "Custom",
                     colorLabel = colorLabel,
@@ -502,6 +516,8 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
         priority: String,
         colorLabel: String,
         dueTime: String?,
+        endTime: String?,
+        estimatedDuration: Int,
         reminderOffsetMin: Int?,
         dates: List<Long>,
         scheduleConfigJson: String
@@ -541,6 +557,8 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
                     priority = priority,
                     dueDate = date,
                     dueTime = dueTime,
+                    endTime = endTime,
+                    estimatedDuration = estimatedDuration,
                     reminderTime = reminderTimeMs,
                     repeatOption = "Custom",
                     colorLabel = colorLabel,
@@ -550,6 +568,47 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
                 val newId = repository.insertTask(task)
                 if (reminderTimeMs != null && reminderTimeMs > System.currentTimeMillis() && notificationsEnabled.value) {
                     ReminderWorker.scheduleReminder(context.applicationContext, newId, reminderTimeMs)
+                }
+            }
+        }
+    }
+
+    fun updateTaskGroupAttributes(
+        context: android.content.Context,
+        groupId: String,
+        title: String,
+        description: String,
+        category: String,
+        priority: String,
+        colorLabel: String,
+        dueTime: String?,
+        endTime: String?,
+        estimatedDuration: Int
+    ) {
+        viewModelScope.launch {
+            val existingTasks = repository.getTasksByGroupId(groupId)
+            existingTasks.forEach { task ->
+                val updated = task.copy(
+                    title = title.trim(),
+                    description = description.trim(),
+                    category = category,
+                    priority = priority,
+                    colorLabel = colorLabel,
+                    dueTime = dueTime,
+                    endTime = endTime,
+                    estimatedDuration = estimatedDuration,
+                    updatedDate = System.currentTimeMillis()
+                )
+                repository.updateTask(updated)
+                
+                // Reschedule reminders
+                ReminderWorker.cancelReminder(context.applicationContext, task.id)
+                if (updated.reminderTime != null && !updated.isCompleted && !updated.isArchived && notificationsEnabled.value) {
+                    ReminderWorker.scheduleReminder(
+                        context.applicationContext,
+                        updated.id,
+                        updated.reminderTime
+                    )
                 }
             }
         }

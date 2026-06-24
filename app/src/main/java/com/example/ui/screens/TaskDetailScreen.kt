@@ -579,37 +579,96 @@ fun TaskDetailScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val groupId = task.scheduleGroupId ?: if (scheduledDatesList.isNotEmpty()) "group_${System.currentTimeMillis()}" else null
+                        val isRecurrenceChanged = schedulerSettings != initialSettings
+                        val isDateChanged = editDueDate != (task.dueDate ?: 0L)
                         
-                        if (groupId != null && scheduledDatesList.isNotEmpty()) {
-                            // Update or insert as a scheduled task series!
-                            viewModel.updateScheduledTasksGroup(
-                                context = context,
-                                groupId = groupId,
-                                title = editTitle,
-                                description = editDesc,
-                                category = editCategory,
-                                priority = editPriority,
-                                colorLabel = task.colorLabel.ifEmpty { "#2196F3" },
-                                dueTime = task.dueTime,
-                                reminderOffsetMin = 15,
-                                dates = scheduledDatesList,
-                                scheduleConfigJson = schedulerSettings.toJson()
-                            )
+                        if (task.scheduleGroupId != null) {
+                            if (isRecurrenceChanged) {
+                                // 1. Recurrence pattern changed: regenerate the group.
+                                // Since this deletes old tasks and recreates new ones, we navigate back.
+                                viewModel.updateScheduledTasksGroup(
+                                    context = context,
+                                    groupId = task.scheduleGroupId,
+                                    title = editTitle,
+                                    description = editDesc,
+                                    category = editCategory,
+                                    priority = editPriority,
+                                    colorLabel = task.colorLabel.ifEmpty { "#2196F3" },
+                                    dueTime = editDueTime,
+                                    endTime = editEndTime,
+                                    estimatedDuration = editDuration,
+                                    reminderOffsetMin = 15,
+                                    dates = scheduledDatesList,
+                                    scheduleConfigJson = schedulerSettings.toJson()
+                                )
+                                onNavigateBack()
+                            } else if (isDateChanged) {
+                                // 2. Date changed: move only this specific occurrence to a different day.
+                                val updated = task.copy(
+                                    title = editTitle,
+                                    description = editDesc,
+                                    category = editCategory,
+                                    priority = editPriority,
+                                    dueTime = editDueTime,
+                                    endTime = editEndTime,
+                                    estimatedDuration = editDuration,
+                                    dueDate = editDueDate,
+                                    updatedDate = System.currentTimeMillis()
+                                )
+                                viewModel.updateTaskWithContext(context, updated)
+                            } else {
+                                // 3. Common properties changed (Title, Description, Category, Priority, Times, Duration): 
+                                // Update all tasks in the group, preserving their original IDs and scheduled dates.
+                                viewModel.updateTaskGroupAttributes(
+                                    context = context,
+                                    groupId = task.scheduleGroupId,
+                                    title = editTitle,
+                                    description = editDesc,
+                                    category = editCategory,
+                                    priority = editPriority,
+                                    colorLabel = task.colorLabel.ifEmpty { "#2196F3" },
+                                    dueTime = editDueTime,
+                                    endTime = editEndTime,
+                                    estimatedDuration = editDuration
+                                )
+                            }
                         } else {
-                            // Update as single normal task
-                            val updated = task.copy(
-                                title = editTitle,
-                                description = editDesc,
-                                category = editCategory,
-                                priority = editPriority,
-                                dueTime = editDueTime,
-                                endTime = editEndTime,
-                                estimatedDuration = editDuration,
-                                dueDate = editDueDate,
-                                updatedDate = System.currentTimeMillis()
-                            )
-                            viewModel.updateTaskWithContext(context, updated)
+                            // 4. Update as single normal task
+                            if (scheduledDatesList.isNotEmpty()) {
+                                // User converted single task to a recurring task series!
+                                val newGroupId = "group_${System.currentTimeMillis()}"
+                                viewModel.updateScheduledTasksGroup(
+                                    context = context,
+                                    groupId = newGroupId,
+                                    title = editTitle,
+                                    description = editDesc,
+                                    category = editCategory,
+                                    priority = editPriority,
+                                    colorLabel = task.colorLabel.ifEmpty { "#2196F3" },
+                                    dueTime = editDueTime,
+                                    endTime = editEndTime,
+                                    estimatedDuration = editDuration,
+                                    reminderOffsetMin = 15,
+                                    dates = scheduledDatesList,
+                                    scheduleConfigJson = schedulerSettings.toJson()
+                                )
+                                // Delete the original single task as it is now part of the recurring series
+                                viewModel.deleteTask(context, task)
+                                onNavigateBack()
+                            } else {
+                                val updated = task.copy(
+                                    title = editTitle,
+                                    description = editDesc,
+                                    category = editCategory,
+                                    priority = editPriority,
+                                    dueTime = editDueTime,
+                                    endTime = editEndTime,
+                                    estimatedDuration = editDuration,
+                                    dueDate = editDueDate,
+                                    updatedDate = System.currentTimeMillis()
+                                )
+                                viewModel.updateTaskWithContext(context, updated)
+                            }
                         }
                         showEditDialog = false
                     }

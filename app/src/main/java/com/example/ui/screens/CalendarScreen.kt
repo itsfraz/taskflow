@@ -414,9 +414,17 @@ fun CalendarScreen(
                                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                                 val startMin = TimeScheduleUtils.parseToMinutes(task.dueTime) ?: 0
-                                                val displayTimeStr = if (use12HourFormat) TimeScheduleUtils.formatTo12H(startMin) else task.dueTime!!
+                                                val endMin = TimeScheduleUtils.parseToMinutes(task.endTime) ?: (startMin + task.estimatedDuration)
+												val displayTimeStr = if (use12HourFormat) {
+													val start12 = TimeScheduleUtils.formatTo12H(startMin).replace(" AM", "am").replace(" PM", "pm")
+													val end12 = TimeScheduleUtils.formatTo12H(endMin).replace(" AM", "am").replace(" PM", "pm")
+													"$start12 - $end12"
+												} else {
+													val end24 = TimeScheduleUtils.formatTo24H(endMin)
+													"${task.dueTime} - $end24"
+												}
                                                 Text(
-                                                    text = displayTimeStr,
+                                                    text = "$displayTimeStr (${task.estimatedDuration}m)",
                                                     fontSize = 10.sp,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                     fontWeight = FontWeight.Medium
